@@ -38,7 +38,32 @@ def yeswehack():
                     scope_type = target['scope_type']
                     if(scope_type in ('web-application', 'ip-address')):
                         if target['scope'] is not None and all(char not in target['scope'] for char in (' ', '{', '}', '<', '>', '%')) and '.' in target['scope']:
-                            temp['scope'].append(target['scope'])
+                            # Remove http:// and https:// to handle wildward cases like so: https://*.app.spacelift.dev
+                            target['scope'] = target['scope'].replace('http://', '')
+                            target['scope'] = target['scope'].replace('https://', '')
+                            if('(' in target['scope'] and ')' in target['scope'] and '|' in target['scope'] and target['scope'][0] != '('): # Handles cases: *.doctolib.(fr|de|it|com|net)
+                                split_base = target['scope'].split('(')[0]
+                                split_arr = target['scope'].split('(')[1]
+                                split_arr = split_arr.replace(')', '')
+                                split_arr = split_arr.split('|')
+                                for variation in split_arr:
+                                    temp['scope'].append(split_base + variation)
+                            elif('[' in target['scope'] and ']' in target['scope'] and '|' in target['scope'] and target['scope'][0] != '['): # Handles cases: www.bookbeat.[se|fi|dk|co.uk|de|pl|dk|ch|at|no|nl|be|es|it|fr]
+                                split_base = target['scope'].split('[')[0]
+                                split_arr = target['scope'].split('[')[1]
+                                split_arr = split_arr.replace(']', '')
+                                split_arr = split_arr.split('|')
+                                for variation in split_arr:
+                                    temp['scope'].append(split_base + variation)
+                            elif('(' in target['scope'] and ')' in target['scope'] and '|' in target['scope'] and target['scope'][0] == '('): # (online|portal|agents|agentuat|surinameuat|surinameopsuat|suriname|thailandevoa).vfsevisa.com
+                                split_base = target['scope'].split(')')[1]
+                                split_arr = target['scope'].split(')')[0]
+                                split_arr = split_arr.replace('(', '')
+                                split_arr = split_arr.split('|')
+                                for variation in split_arr:
+                                    temp['scope'].append(variation + split_base)
+                            else:
+                                temp['scope'].append(target['scope'])
 
             feed[program_handle] = temp
 
@@ -49,10 +74,14 @@ def main():
     feed = yeswehack()
     end_time = time.time()
     logging.info(f"YesWeHack Execution Time: {end_time - start_time}")
+    dedup_scope = set()
 
     for program in feed.values():
         for url in program['scope']:
-            print(url)
+            dedup_scope.add(url)
+
+    for url in dedup_scope:
+        print(url)
 
     with open('debug/yeswehack.json', 'w') as file:
         json.dump(feed, file)

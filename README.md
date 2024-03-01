@@ -18,6 +18,6 @@ python yeswehack.py > yeswehack.txt
 
 ## Usful Command
 ```bash
-cat scopes/* | grep -E '^\*\.' | sed 's/\*\.//' | subfinder -o subs.txt
+cat scopes/* | grep -E '^\*\.' | sed 's/\*\.//' | sort | uniq | subfinder -all -o subs.txt
 ```
 

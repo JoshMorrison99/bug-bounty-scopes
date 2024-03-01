@@ -57,10 +57,14 @@ def main():
     feed = bugcrowd()
     end_time = time.time()
     logging.info(f"Bugcrowd Execution Time: {end_time - start_time}")
+    dedup_scope = set()
 
     for program in feed.values():
         for url in program['scope']:
-            print(url)
+            dedup_scope.add(url)
+
+    for url in dedup_scope:
+        print(url)
 
     with open('debug/bugcrowd.json', 'w') as file:
         json.dump(feed, file)

@@ -52,10 +52,14 @@ def main():
         api_username = config['hackerone']['API_USERNAME']
         api_token = config['hackerone']['API_TOKEN']
         feed = hackerone(api_username, api_token)
+        dedup_scope = set()
 
         for program in feed.values():
             for url in program['scope']:
-                print(url)
+                dedup_scope.add(url)
+        
+        for url in dedup_scope:
+            print(url)
 
         with open('debug/hackerone.json', 'w') as file:
             json.dump(feed, file)
