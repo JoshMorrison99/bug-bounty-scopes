@@ -33,6 +33,7 @@ def yeswehack():
             program_response = requests.get(program_url, headers=headers)
             program_data = program_response.json()
 
+
             for version_data in program_data['items']:
                 for target in version_data['data'].get('scopes', []):
                     scope_type = target['scope_type']
