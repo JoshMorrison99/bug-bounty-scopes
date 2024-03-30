@@ -5,7 +5,7 @@ import logging
 import json
 
 # Configure logging
-logging.basicConfig(filename='debug/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def integriti(api_token):
     headers = {
@@ -25,7 +25,8 @@ def integriti(api_token):
             'name': program['name'],
             'submission_state': "TODO",
             'handle': program_handle,
-            'scope': []
+            'in-scope': [],
+            'out-of-scope': []
         }
 
         program_url = f'https://api.intigriti.com/external/researcher/v1/programs/{program_id}'
@@ -34,13 +35,25 @@ def integriti(api_token):
         if(program_response.status_code == 200):
             for _ in program_data['domains']:
                 for content in program_data['domains']['content']:
+                    scope_url = content['endpoint'].replace('http://', '')
+                    scope_url = content['endpoint'].replace('https://', '')
                     asset_type = content['type']['value']
                     asset_status = content['tier']['value']
-                    if asset_type == 'Url' and asset_status != "Out Of Scope":
-                        if content['endpoint'] is not None and all(char not in content['endpoint'] for char in (' ', '{', '}', '<', '>', '%')) and '.' in content['endpoint']:
-                            temp['scope'].append(content['endpoint'])
+                    if(asset_status != 'Out Of Scope'):
+                        if (asset_type == 'Url' or asset_type == 'Wildcard'):
+                            if scope_url is not None and all(char not in scope_url for char in (' ', '{', '}', '<', '>', '%')) and '.' in scope_url:
+                                if(scope_url not in temp['in-scope']):
+                                    temp['in-scope'].append(scope_url)
+                    else:
+                        # Out-Of-Scope Target
+                        if (asset_type == 'Url' or asset_type == 'Wildcard'):
+                            if scope_url is not None and all(char not in scope_url for char in (' ', '{', '}', '<', '>', '%')) and '.' in scope_url:
+                                if(scope_url not in temp['out-of-scope']):
+                                    temp['out-of-scope'].append(scope_url)
+                    
 
-            feed[program_handle] = temp
+            if(temp['in-scope']):
+                feed[program_handle.replace(' ', '-')] = temp
 
     return feed
 
@@ -51,16 +64,8 @@ def main():
     if 'integriti' in config:
         api_token = config['integriti']['API_TOKEN']
         feed = integriti(api_token)
-        dedup_scope = set()
 
-        for program in feed.values():
-            for url in program['scope']:
-                dedup_scope.add(url)
-
-        for url in dedup_scope:
-            print(url)
-
-        with open('debug/integriti.json', 'w') as file:
+        with open('feeds/integriti.json', 'w') as file:
             json.dump(feed, file)
 
 if __name__ == "__main__":

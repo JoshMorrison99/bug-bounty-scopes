@@ -1,1 +1,8 @@
 requests
+tldextract
+tqdm
+orjson
+dank
+datrie
+dnspython
+editdistance

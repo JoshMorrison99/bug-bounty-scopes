@@ -5,7 +5,7 @@ import logging
 import json
 
 # Configure logging
-logging.basicConfig(filename='debug/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def hackerone(api_username, api_token):
     headers = {'Accept': 'application/json'}
@@ -22,7 +22,8 @@ def hackerone(api_username, api_token):
                 'name': program['attributes']['name'],
                 'submission_state': program['attributes']['submission_state'],
                 'handle': program_handle,
-                'scope': []
+                'in-scope': [],
+                'out-of-scope': []
             }
 
             program_url = f'https://api.hackerone.com/v1/hackers/programs/{program_handle}/structured_scopes'
@@ -30,12 +31,14 @@ def hackerone(api_username, api_token):
             program_data = program_response.json()
 
             for _data in program_data['data']:
-                asset_type = _data['attributes']['asset_type']
-                if asset_type in ('URL', 'WILDCARD'):
-                    if _data['attributes']['asset_identifier'] is not None and all(char not in _data['attributes']['asset_identifier'] for char in (' ', '{', '}', '<', '>', '%')) and '.' in _data['attributes']['asset_identifier']:
-                        temp['scope'].append(_data['attributes']['asset_identifier'])
 
-            feed[program_handle] = temp
+                # Only get items that are in-scope
+                in_scope = _data['attributes']['eligible_for_submission']
+                scope_type = "in-scope" if in_scope else "out-of-scope"
+                temp = target(_data, temp, scope_type)
+            
+            if(temp['in-scope']):
+                feed[program_handle.replace(' ', '-')] = temp
 
         if 'next' in data['links']:
             url = data['links']['next']
@@ -43,6 +46,24 @@ def hackerone(api_username, api_token):
             break
 
     return feed
+
+def target(_data, temp, scope_type):
+    asset_type = _data['attributes']['asset_type']
+    if asset_type in ('URL', 'WILDCARD'):
+        scope_url =  _data['attributes']['asset_identifier']
+        # Remove http:// and https:// to handle wildward cases like so: https://*.app.spacelift.dev
+        scope_url = scope_url.replace('http://', '')
+        scope_url = scope_url.replace('https://', '')
+        if scope_url is not None and all(char not in scope_url for char in (' ', '{', '}', '<', '>', '%')) and '.' in scope_url:
+            if(',' in scope_url):
+                scope_urls = scope_url.split(',')
+                for url in scope_urls:
+                    if(scope_url not in temp[scope_type]):
+                        temp[scope_type].append(url)
+            else:
+                if(scope_url not in temp[scope_type]):
+                    temp[scope_type].append(scope_url)
+    return temp
 
 def main():
     config = configparser.ConfigParser()
@@ -52,16 +73,8 @@ def main():
         api_username = config['hackerone']['API_USERNAME']
         api_token = config['hackerone']['API_TOKEN']
         feed = hackerone(api_username, api_token)
-        dedup_scope = set()
 
-        for program in feed.values():
-            for url in program['scope']:
-                dedup_scope.add(url)
-        
-        for url in dedup_scope:
-            print(url)
-
-        with open('debug/hackerone.json', 'w') as file:
+        with open('feeds/hackerone.json', 'w') as file:
             json.dump(feed, file)
     else:
         print("Error: 'hackerone' section not found in the config file.")

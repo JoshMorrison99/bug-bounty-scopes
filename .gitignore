@@ -1,2 +1,7 @@
 config.ini
-subs.txt
+feeds
+resolvers.txt 
+rules
+regulator
+logs
+db
