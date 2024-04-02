@@ -6,3 +6,4 @@ dank
 datrie
 dnspython
 editdistance
+pandas

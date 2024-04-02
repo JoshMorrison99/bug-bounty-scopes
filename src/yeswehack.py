@@ -74,6 +74,8 @@ def yeswehack():
 
                 for target in version_data['data'].get('out_of_scope', []):
                     if target is not None and all(char not in target for char in (' ', '{', '}', '<', '>', '%')) and '.' in target:
+                        target = target.replace('http://', '')
+                        target = target.replace('https://', '')
                         temp['out-of-scope'].append(target)
 
 

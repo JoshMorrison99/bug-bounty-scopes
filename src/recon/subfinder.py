@@ -5,8 +5,8 @@ from concurrent.futures import as_completed
 import os
 from tqdm import tqdm
 from datetime import datetime
+from db_operations import create_database, get_cursor
 import logging
-from db_operations import get_cursor, create_database
 import tldextract
 
 # Configure logging
@@ -76,7 +76,7 @@ def main():
                     if(program not in subfinder_findings):
                         subfinder_findings[program] = []
 
-                    for url in feed[program]['scope']:
+                    for url in feed[program]['in-scope']:
                         if url.startswith('*.'):
                             wildcard_domain = clean_url(url[2:])
                             if(wildcard_domain):
@@ -116,4 +116,6 @@ def main():
                     pbar.update(1)
     cursor.connection.commit()
     cursor.close()
-main()
+
+if __name__ == '__main__':
+    main()

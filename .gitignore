@@ -5,3 +5,7 @@ rules
 regulator
 logs
 db
+httpx
+nuclei-templates
+scopes
+urls
