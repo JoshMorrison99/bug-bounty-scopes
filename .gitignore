@@ -9,3 +9,6 @@ httpx
 nuclei-templates
 scopes
 urls
+alterx
+dnsx
+__pycache__/

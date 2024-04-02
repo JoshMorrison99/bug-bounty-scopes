@@ -54,26 +54,6 @@ def run_shuffledns(rules, domain):
         logging.exception(e)  # Log the full exception traceback
         return None
 
-def get_latest_resolvers():
-    response = requests.get('https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt')
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Open a file in write mode and write the content of the response to it
-        with open('resolvers.txt', 'w') as file:
-            file.write(response.text)
-        logging.info("Content written to resolvers.txt successfully.")
-    else:
-        logging.error("Failed to fetch resolvers.txt from the URL.")
-
-def extract_domain(url):
-    extract = tldextract.extract(url)
-    if(extract.suffix != ''):
-        domain = extract.domain + '.' + extract.suffix
-    else:
-        domain = extract.domain
-    return domain
-
 def process_regulator_result(future):
     global cursor
 
@@ -105,7 +85,6 @@ def main():
 
     os.makedirs('rules', exist_ok=True)
     os.makedirs('regulator', exist_ok=True)
-    get_latest_resolvers()
 
     for bb_program in os.listdir(f'db'):
         bb_program_db = bb_program.replace('.db', '').replace('', '')
