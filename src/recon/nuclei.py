@@ -3,6 +3,7 @@ import subprocess
 import logging
 import shlex
 import pandas as pd
+import time
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -29,10 +30,13 @@ def main():
 
     # Loop over all the databases and run SQL query to get today's subdomains.
     for file in os.listdir('urls'):
-
         run_nuclei(f'urls/{file}')
 
-main()
+if __name__ == "__main__":
+    start_time = time.time()
+    main()
+    end_time = time.time()
+    logging.info(f"Nuclei Execution Time: {end_time - start_time}")
 
 
 

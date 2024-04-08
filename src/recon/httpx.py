@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 import shlex
 import pandas as pd
+import time
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -44,18 +45,42 @@ def main():
         results = cursor.fetchall()
 
         with open(f'httpx/{database_name}.txt', 'w') as file:
-            for line in results:
-                file.write(line[0] + '\n')
+            for subdomain in results:
+                file.write(subdomain[0] + '\n')
 
         run_httpx(database_name)
 
         df = pd.read_csv(f'temp.csv')
-        columns = ['status_code', 'content_length', 'webserver', 'host', 'url']
+        columns = ['status_code', 'webserver', 'host', 'url', 'tech', 'input']
 
         extracted_columns = df[columns]
 
         # Write the extracted columns to a new CSV file
         extracted_columns.to_csv(f'httpx/{database_name}.csv', index=False)
+        
+        for index, row in extracted_columns.iterrows():
+            status_code = row['status_code']
+            webserver = row['webserver']
+            ip = row['host']
+            url = row['url']
+            technology = row['tech']
+            subdomain = row['input']
+            
+            # Write to database
+            cursor.execute('''INSERT OR REPLACE INTO subdomains 
+                            (id, subdomain, ip, status_code, web_server, technology, program, updated_at, created_at) 
+                            VALUES 
+                            ((SELECT id FROM subdomains WHERE subdomain = ?),
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            (SELECT program FROM subdomains WHERE subdomain = ?),
+                            DATE('now', 'localtime'),
+                            COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
+                            (subdomain, subdomain, ip, status_code, webserver, technology, subdomain, subdomain))
+            cursor.connection.commit()
 
         os.remove('temp.csv')
         os.remove(f'httpx/{database_name}.txt')
@@ -63,8 +88,13 @@ def main():
         # Close the cursor and connection
         cursor.close()
         conn.close()
+        
 
-main()
+if __name__ == "__main__":
+    start_time = time.time()
+    main()
+    end_time = time.time()
+    logging.info(f"HTTPX Execution Time: {end_time - start_time}")
 
 
 

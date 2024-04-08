@@ -19,16 +19,22 @@ def main():
 
             with open(f'scopes/{clean_filename}-out.txt', 'w') as file:
                 for program in feed:
-                    for url in feed[program]['out-of-scope']:
-                        regex_url = url.replace('.', r'\.').replace('*', '.*')
-                        out_of_scopes.add(regex_url)
-                        file.write(regex_url + '\n')
+                    for _, urls in feed[program]['out-of-scope'].items():
+                        if(urls == []):
+                            continue
+                        for url in urls:
+                            regex_url = url.replace('.', r'\.').replace('*', '.*')
+                            out_of_scopes.add(regex_url)
+                            file.write(regex_url + '\n')
                 
             with open(f'scopes/{clean_filename}-in.txt', 'w') as file:
                 for program in feed:
-                    for url in feed[program]['in-scope']:
-                        regex_url = url.replace('.', r'\.').replace('*', '.*')
-                        file.write(regex_url + '\n')
+                    for _, urls in feed[program]['in-scope'].items():
+                        if(urls == []):
+                            continue
+                        for url in urls:
+                            regex_url = url.replace('.', r'\.').replace('*', '.*')
+                            file.write(regex_url + '\n')
 
             # Connect to the SQLite database
             conn = sqlite3.connect(f'db/{clean_filename}.db')
@@ -42,7 +48,7 @@ def main():
             compiled_patterns = [re.compile(pattern) for pattern in out_of_scopes]
 
             # Batch delete operation
-            delete_data = [(url_tuple[0],) for url_tuple in tqdm(urls) if not any(pattern.match(url_tuple[0]) for pattern in compiled_patterns)]
+            delete_data = [(url_tuple[0],) for url_tuple in tqdm(urls) if any(pattern.match(url_tuple[0]) for pattern in compiled_patterns)]
             cursor.executemany('DELETE FROM subdomains WHERE subdomain=?', delete_data)
 
             # Commit the changes and close the connection

@@ -9,6 +9,7 @@ from db_operations import create_database, get_cursor
 import logging
 import shlex
 import shutil
+import time
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,10 +19,10 @@ def run_dnsx(cidr, program):
     try:
         command = f"dnsx -l {cidr} -r resolvers.txt -resp-only -ptr -silent"
         args = shlex.split(command)
-        output = subprocess.check_output(args, text=True, timeout=300)
+        output = subprocess.check_output(args, text=True, timeout=600)
         return output, program
     except subprocess.TimeoutExpired:
-        logging.error(f'DNSx took longer than 5 minutes and timed-out on {cidr}')
+        logging.error(f'DNSx took longer than 10 minutes and timed-out on {cidr}')
         return None, program
     except subprocess.CalledProcessError as e:
         logging.error(f'DNSx command failed with error code {e.returncode}: {e.output}')
@@ -105,4 +106,7 @@ def main():
     cursor.close()
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    end_time = time.time()
+    logging.info(f"DNSX Execution Time: {end_time - start_time}")

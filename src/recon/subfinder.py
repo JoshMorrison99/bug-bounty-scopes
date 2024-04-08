@@ -7,6 +7,7 @@ from tqdm import tqdm
 from datetime import date
 from db_operations import create_database, get_cursor
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -107,4 +108,8 @@ def main():
     cursor.close()
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    end_time = time.time()
+    logging.info(f"Subfinder Execution Time: {end_time - start_time}")
+    

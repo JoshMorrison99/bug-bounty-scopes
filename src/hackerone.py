@@ -38,7 +38,7 @@ def hackerone(api_username, api_token):
                     'URL': [],
                     'IP_ADDRESS': [],
                     'CIDR': [],
-                },
+                }
             }
 
             program_url = f'https://api.hackerone.com/v1/hackers/programs/{program_handle}/structured_scopes'
@@ -73,15 +73,14 @@ def hackerone(api_username, api_token):
                             else:
                                 program_object[scope_type]['IP_ADDRESS'].append(scope_url)
 
-                        # Only add program_object if there are value in the [in-scope] section
-                        if(program_object['in-scope']):
-                            feed[program_handle] = program_object
-
-
                 if 'next' in data['links']:
                     program_url = data['links']['next']
                 else:
                     break
+                
+            # Only add program_object if there are value in the [in-scope] section
+            if(program_object['in-scope']):
+                feed[program_handle] = program_object
 
         if 'next' in h1['links']:
             url = h1['links']['next']

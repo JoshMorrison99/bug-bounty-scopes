@@ -3,6 +3,8 @@ import subprocess
 import logging
 import shlex
 import pandas as pd
+import time
+from db_operations import create_URL_database, get_cursor
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,7 +12,7 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_katana(filename):
     try:
-        command = f'katana -list temp.txt -js-crawl -crawl-duration 600 -known-files all -headers headers.txt -crawl-scope scopes/{filename}-in.txt -crawl-out-scope scopes/{filename}-out.txt -o urls/{filename}-katana.txt'
+        command = f'katana -list temp.txt -js-crawl -crawl-duration 600 -known-files all -headers headers.txt -crawl-scope temp.txt -crawl-out-scope scopes/{filename}-out.txt -o urls/{filename}-katana.txt'
         args = shlex.split(command)
         subprocess.run(args, check=True, text=True, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
@@ -38,8 +40,28 @@ def main():
 
         # Clean up
         os.remove('temp.txt')
+        
+        # Write to database
+        create_URL_database(f"url-db/{filename}.db")
+        cursor = get_cursor(f"url-db/{filename}.db")
+        with open(f'urls/{filename}-katana.txt') as file:
+            for url in file:
+                cursor.execute('''INSERT OR REPLACE INTO urls 
+                                (id, url, updated_at, created_at) 
+                                VALUES 
+                                ((SELECT id FROM urls WHERE url = ?),
+                                ?,
+                                DATE('now', 'localtime'),
+                                COALESCE((SELECT created_at FROM urls WHERE url = ?), DATE('now', 'localtime')))''', 
+                                (url, url, url))
+        cursor.connection.commit()
+                
 
-main()
+if __name__ == "__main__":
+    start_time = time.time()
+    main()
+    end_time = time.time()
+    logging.info(f"Katana Execution Time: {end_time - start_time}")
 
 
 

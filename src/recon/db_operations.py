@@ -26,6 +26,24 @@ def create_database(db_name):
     
     conn.commit()
     print(f"SQLite database {db_name.replace('db/', '')} created successfully.")
+    
+def create_URL_database(db_name):
+    conn = sqlite3.connect(db_name, check_same_thread=False)
+    cursor = conn.cursor()
+
+    # Create subdomain table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS urls
+                  (id INTEGER PRIMARY KEY, 
+                   url TEXT,
+                   updated_at DATE DEFAULT (DATE('now', 'localtime')),
+                   created_at DATE DEFAULT (DATE('now', 'localtime')),
+                   UNIQUE(url))''')
+    
+    # Create indexes
+    cursor.execute('''CREATE INDEX IF NOT EXISTS url_idx ON urls (url)''')
+    
+    conn.commit()
+    print(f"SQLite database {db_name.replace('url-db/', '')} created successfully.")
 
 def create_connection(db_name):
     conn = sqlite3.connect(db_name, check_same_thread=False)

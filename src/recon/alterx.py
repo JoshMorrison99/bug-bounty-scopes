@@ -4,6 +4,7 @@ from concurrent.futures import as_completed
 import os
 import logging
 import shutil
+import time
 import shlex
 from db_operations import get_cursor
 
@@ -15,11 +16,34 @@ MAX_WORKERS = 15
 cursor = None
 
 def run_alterx(domain, program):
-    cleaned_domain = domain.split('/')[-1]
+    cleaned_domain = domain.split('/')[-1].replace('.txt', '')
     try:
-        print(domain)
+        num_permutations = subprocess.run(f"alterx -l {domain} -silent -enrich -estimate", check=True, text=True, shell=True, stdout=subprocess.PIPE, timeout=300)
+        num_permutations = num_permutations.stdout
+        while int(num_permutations) > 100000:
+            num_permutations = subprocess.run(f"alterx -l {domain} -silent -enrich -estimate", check=True, text=True, shell=True, stdout=subprocess.PIPE, timeout=300)
+            num_permutations = num_permutations.stdout
+            if(int(num_permutations) > 100000):
+                # Limit the file in half
+                command = f"wc -l {domain}"
+                args = shlex.split(command)
+                file_lines = subprocess.run(args, text=True, check=True, stdout=subprocess.PIPE)
+                num_file_lines = int(int(file_lines.stdout.split()[0]) / 2)
+                
+                command = f"head -n {num_file_lines} {domain}"
+                args = shlex.split(command)
+                subdomains = subprocess.run(args, stdout=subprocess.PIPE, text=True, check=True)
+                
+                with open(f'temp-{cleaned_domain}', 'w') as file:
+                    file.writelines(subdomains.stdout.splitlines(True))
+                
+                command = f"mv temp-{cleaned_domain} {domain}"
+                args = shlex.split(command)
+                subprocess.run(args, check=True)
+                
+     
         out_file = f"rules/{cleaned_domain}"
-        command = f"alterx -l {domain} -o {out_file}"
+        command = f"alterx -l {domain} -enrich -silent -limit 1000000 -o {out_file}"
         args = shlex.split(command)
         subprocess.run(args, check=True, text=True, timeout=300)
         return out_file, cleaned_domain, program
@@ -35,22 +59,25 @@ def run_alterx(domain, program):
 
 def run_shuffledns(rules, domain, program):
     try:
-        command = f'shuffledns -d {domain} -l {rules} -r resolvers.txt'
+        cleaned_domain = domain.replace('.txt', '')
+        command = f'shuffledns -d {cleaned_domain} -l {rules} -r resolvers.txt'
         stdout = subprocess.check_output(command, shell=True, text=True, timeout=600, stderr=subprocess.DEVNULL)
         urls = stdout.split('\n')
-        return urls, program
+        if(urls):
+            return urls, program
+        return None
     except subprocess.TimeoutExpired:
         # Handle timeout
         logging.error("ShuffleDNS took longer than 10 minutes and timed out.")
         return None
     except subprocess.CalledProcessError as e:
         # Handle subprocess errors
-        logging.error(f"ShuffleDNS encountered an error for domain {domain}.")
+        logging.error(f"ShuffleDNS encountered an error for domain {cleaned_domain}.")
         logging.error(f"Command failed with return code {e.returncode}: {e.output}")
         return None
     except Exception as e:
         # Handle other unexpected errors
-        logging.error(f"ShuffleDNS had an unexpected error for domain {domain}.")
+        logging.error(f"ShuffleDNS had an unexpected error for domain {cleaned_domain}.")
         logging.exception(e)  # Log the full exception traceback
         return None
 
@@ -58,11 +85,11 @@ def process_alterx_result(future):
     global cursor
 
     rules, domain, program = future.result()
-    if(rules):
+    if(rules != None and rules != ""):
         subdomains, program = run_shuffledns(rules, domain, program)
-        if(subdomains):
+        if(subdomains != None and subdomains != ""):
             for subdomain in subdomains:
-                if(subdomain):
+                if(subdomain != None and subdomain != ""):
                     cursor.execute('''INSERT OR REPLACE INTO subdomains 
                                                 (id, subdomain, ip, status_code, web_server, technology, program, updated_at, created_at) 
                                                 VALUES 
@@ -128,8 +155,12 @@ def main():
                     future = executor.submit(run_alterx, f'alterx/{program}/{domain}', program)
                     future.add_done_callback(process_alterx_result)      
                 
-
         logging.info(f'Subdomain Permutations on {bb_program} Finshed.')
         
-
-main()
+        
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    end_time = time.time()
+    logging.info(f"AlterX Execution Time: {end_time - start_time}")
+    
