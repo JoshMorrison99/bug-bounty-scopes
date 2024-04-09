@@ -11,33 +11,22 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 def main():
     logging.info('Removing out-of-scope subdomains')
     for file_name in os.listdir('feeds'):
-        clean_filename = file_name.replace(".json", "")
         with open(f'feeds/{file_name}', 'r') as file:
             feed = json.load(file)
 
             out_of_scopes = set()
 
-            with open(f'scopes/{clean_filename}-out.txt', 'w') as file:
-                for program in feed:
-                    for _, urls in feed[program]['out-of-scope'].items():
-                        if(urls == []):
-                            continue
-                        for url in urls:
-                            regex_url = url.replace('.', r'\.').replace('*', '.*')
-                            out_of_scopes.add(regex_url)
-                            file.write(regex_url + '\n')
+            for program in feed:
+                for _, urls in feed[program]['out-of-scope'].items():
+                    if(urls == []):
+                        continue
+                    for url in urls:
+                        regex_url = url.replace('.', r'\.').replace('*', '.*')
+                        out_of_scopes.add(regex_url)
                 
-            with open(f'scopes/{clean_filename}-in.txt', 'w') as file:
-                for program in feed:
-                    for _, urls in feed[program]['in-scope'].items():
-                        if(urls == []):
-                            continue
-                        for url in urls:
-                            regex_url = url.replace('.', r'\.').replace('*', '.*')
-                            file.write(regex_url + '\n')
 
             # Connect to the SQLite database
-            conn = sqlite3.connect(f'db/{clean_filename}.db')
+            conn = sqlite3.connect(f'swarm.db')
             cursor = conn.cursor()
 
             # Fetch all URLs from the database

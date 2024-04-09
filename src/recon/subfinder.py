@@ -13,20 +13,20 @@ import time
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def run_subfinder(url, program):
+def run_subfinder(url, program, public, vdp):
     try:
         command = ['subfinder', '-all', '-silent', '-d', url, '-rl', '1']
         output = subprocess.check_output(command, text=True, timeout=300)
-        return output, program
+        return output, program, public, vdp
     except subprocess.TimeoutExpired:
         logging.error(f'Subfinder took longer than 5 minutes and timed-out on {url}')
-        return None, program
+        return None, program, public, vdp
     except subprocess.CalledProcessError as e:
         logging.error(f'Subfinder command failed with error code {e.returncode}: {e.output}')
-        return None, program
+        return None, program, public, vdp
     except Exception as e:
         logging.error(f'Subfinder had an error occur on {url}: {e}')
-        return None, program
+        return None, program, public, vdp
 
 def main():
 
@@ -42,64 +42,82 @@ def main():
         if os.path.isfile(os.path.join('feeds', filename)):
             with open(f'feeds/{filename}', 'r') as file:
                 feed = json.load(file)
-                bb_program = filename_cleaned
-                create_database(f"db/{bb_program}.db")
-                cursor = get_cursor(f"db/{bb_program}.db")
+                platform = filename_cleaned
+                create_database(f"swarm.db")
+                cursor = get_cursor(f"swarm.db")
                 for program in feed:
                    
-                    if(program not in wildcards):
-                        wildcards[program] = []
-
+                    wildcards.setdefault(program, {})
+                    wildcards[program].setdefault('subdomains', [])
+                    is_public = feed[program]['public']
+                    is_vdp = feed[program]['vdp']
                     for subdomain in feed[program]['in-scope']['WILDCARD']:
                         wildcard_domain = (subdomain)
-                        wildcards[program].append(wildcard_domain.replace('*.', ''))
+                        wildcards[program]['subdomains'].append(wildcard_domain.replace('*.', ''))
+                        wildcards[program]['public'] = is_public
+                        wildcards[program]['vdp'] = is_vdp
                         cursor.execute("INSERT OR REPLACE INTO wildcard_domains (wildcard_domain) VALUES (?)", (wildcard_domain,))
                         
                     for subdomain in feed[program]['in-scope']['URL']:
                         cursor.execute('''INSERT OR REPLACE INTO subdomains 
-                                            (id, subdomain, ip, status_code, web_server, technology, program, updated_at, created_at) 
+                                            (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
                                             VALUES 
                                             ((SELECT id FROM subdomains WHERE subdomain = ?),
                                             ?,
                                             ?,
                                             ?,
                                             ?,
-                                            NULL,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
                                             ?,
                                             DATE('now', 'localtime'),
                                             COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
-                                            (subdomain, subdomain, None, None, None, program, subdomain))
+                                            (subdomain, subdomain, None, None, None, None, None, None, program, 'Subfinder', is_public, is_vdp, platform, subdomain))
 
         # Collect results asynchronously
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for program in wildcards:
-                for subdomain in wildcards[program]:
-                    futures.append(executor.submit(run_subfinder, subdomain, program))
+                for subdomain in wildcards[program]['subdomains']:
+                    public = wildcards[program]['public']
+                    vdp = wildcards[program]['vdp']
+                    futures.append(executor.submit(run_subfinder, subdomain, program, public, vdp))
 
             num_futures = len(futures)
             with tqdm(total=num_futures) as pbar:
                 completed = 0
                 for future in as_completed(futures):
-                    subdomains, program = future.result()
+                    subdomains, program, public, vdp = future.result()
 
                     if(subdomains):
                         subdomains = subdomains.split('\n')
                         for subdomain in subdomains:
                             if(subdomain):
                                 cursor.execute('''INSERT OR REPLACE INTO subdomains 
-                                                (id, subdomain, ip, status_code, web_server, technology, program, updated_at, created_at) 
-                                                VALUES 
-                                                ((SELECT id FROM subdomains WHERE subdomain = ?),
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                NULL,
-                                                ?,
-                                                DATE('now', 'localtime'),
-                                                COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
-                                                (subdomain, subdomain, None, None, None, program, subdomain))
+                                            (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
+                                            VALUES 
+                                            ((SELECT id FROM subdomains WHERE subdomain = ?),
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            DATE('now', 'localtime'),
+                                            COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
+                                            (subdomain, subdomain, None, None, None, None, None, None, program, 'subfinder', is_public, is_vdp, platform, subdomain))
+                                
                         cursor.connection.commit()
 
                     completed += 1

@@ -12,9 +12,10 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_katana(filename):
     try:
-        command = f'katana -list temp.txt -js-crawl -crawl-duration 600 -known-files all -headers headers.txt -crawl-scope temp.txt -crawl-out-scope scopes/{filename}-out.txt -o urls/{filename}-katana.txt'
+        command = f'katana -list {filename} -js-crawl -crawl-duration 600 -known-files all -headers headers.txt -crawl-scope {filename}'
         args = shlex.split(command)
-        subprocess.run(args, check=True, text=True, stderr=subprocess.DEVNULL)
+        results = subprocess.run(args, check=True, text=True, stderr=subprocess.DEVNULL)
+        return results.stdout
     except subprocess.CalledProcessError as e:
         # Handle subprocess errors
         logging.error(f"HTTPX encountered an error.")

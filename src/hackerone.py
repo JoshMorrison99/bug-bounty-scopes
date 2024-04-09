@@ -38,7 +38,9 @@ def hackerone(api_username, api_token):
                     'URL': [],
                     'IP_ADDRESS': [],
                     'CIDR': [],
-                }
+                },
+                "public": True if program['attributes']['state'] == 'public_mode' else False,
+                "vdp": program['attributes']['offers_bounties'],
             }
 
             program_url = f'https://api.hackerone.com/v1/hackers/programs/{program_handle}/structured_scopes'
@@ -48,7 +50,7 @@ def hackerone(api_username, api_token):
                 data = program_response.json()
 
                 for program_data in data['data']:
-
+                    
                     # Classify item as in-scope or out-of-scope
                     is_in_scope = program_data['attributes']['eligible_for_submission']
                     scope_type = "in-scope" if is_in_scope else "out-of-scope"

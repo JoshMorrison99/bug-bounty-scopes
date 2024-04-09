@@ -9,10 +9,16 @@ def create_database(db_name):
                   (id INTEGER PRIMARY KEY, 
                    subdomain TEXT,
                    ip TEXT DEFAULT NULL,
+                   asn TEXT DEFAULT NULL,
                    status_code INTEGER DEFAULT NULL,
+                   content_length INTEGER DEFAULT NULL,
                    web_server TEXT DEFAULT NULL,
                    technology TEXT DEFAULT NULL,
                    program TEXT DEFAULT NULL,
+                   recon_source TEXT DEFAULT NULL,
+                   public TEXT DEFAULT NULL,
+                   vdp TEXT DEFAULT NULL,
+                   platform TEXT DEFAULT NULL,
                    updated_at DATE DEFAULT (DATE('now', 'localtime')),
                    created_at DATE DEFAULT (DATE('now', 'localtime')),
                    UNIQUE(subdomain))''')
@@ -43,7 +49,7 @@ def create_URL_database(db_name):
     cursor.execute('''CREATE INDEX IF NOT EXISTS url_idx ON urls (url)''')
     
     conn.commit()
-    print(f"SQLite database {db_name.replace('url-db/', '')} created successfully.")
+    print(f"SQLite database swarm.db created successfully.")
 
 def create_connection(db_name):
     conn = sqlite3.connect(db_name, check_same_thread=False)
