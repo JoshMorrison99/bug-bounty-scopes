@@ -31,7 +31,7 @@ def create_database(db_name):
     cursor.execute('''CREATE INDEX IF NOT EXISTS subdomain_idx ON subdomains (subdomain)''')
     
     conn.commit()
-    print(f"SQLite database {db_name.replace('db/', '')} created successfully.")
+    print(f"SQLite database {db_name} created successfully.")
     
 def create_URL_database(db_name):
     conn = sqlite3.connect(db_name, check_same_thread=False)
@@ -49,7 +49,7 @@ def create_URL_database(db_name):
     cursor.execute('''CREATE INDEX IF NOT EXISTS url_idx ON urls (url)''')
     
     conn.commit()
-    print(f"SQLite database swarm.db created successfully.")
+    print(f"SQLite database {db_name} created successfully.")
 
 def create_connection(db_name):
     conn = sqlite3.connect(db_name, check_same_thread=False)

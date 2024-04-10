@@ -7,15 +7,14 @@ pip install -r requirements.txt
 #cp -r /mnt/c/Users/joshm/OneDrive/db .
 
 # Clear any previous log data
-echo -n > logs/regulator.log
 echo -n > logs/debug.log
 
 # Clear any previously generated data
 rm -rf feeds
-rm -rf scopes
+rm -rf httpx
 
 mkdir feeds
-mkdir scopes
+mkdir httpx
 
 # Get latest scopes
 #python3 src/yeswehack.py
@@ -35,11 +34,11 @@ python3 src/recon/dnsx.py
 # Remove Subdomains that are out of scope
 python3 src/helpers/remove_out_of_scope.py
 
-#python3 src/recon/httpx.py
+python3 src/recon/httpx.py
 
-#python3 src/recon/katana.py
+python3 src/recon/katana.py
 
-#python3 src/recon/nuclei.py
+python3 src/recon/nuclei.py
 
 # Copy Databases to OneDrive to bve saved
-cp -r db /mnt/c/Users/joshm/OneDrive
+#cp -r db /mnt/c/Users/joshm/OneDrive

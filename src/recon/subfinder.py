@@ -77,7 +77,7 @@ def main():
                                             ?,
                                             DATE('now', 'localtime'),
                                             COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
-                                            (subdomain, subdomain, None, None, None, None, None, None, program, 'Subfinder', is_public, is_vdp, platform, subdomain))
+                                            (subdomain, subdomain, None, None, None, None, None, None, program, 'subfinder', is_public, is_vdp, platform, subdomain))
 
         # Collect results asynchronously
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:

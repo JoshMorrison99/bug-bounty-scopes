@@ -19,10 +19,10 @@ def run_dnsx(filename, program):
     try:
         command = f"dnsx -l {filename} -r resolvers.txt -resp-only -ptr -silent"
         args = shlex.split(command)
-        output = subprocess.check_output(args, text=True, timeout=600)
+        output = subprocess.check_output(args, text=True, timeout=1800)
         return output, program, filename
     except subprocess.TimeoutExpired:
-        logging.error(f'DNSx took longer than 10 minutes and timed-out on {filename}')
+        logging.error(f'DNSx took longer than 30 minutes and timed-out on {filename}')
         return None, program, filename
     except subprocess.CalledProcessError as e:
         logging.error(f'DNSx command failed with error code {e.returncode}: {e.output}')

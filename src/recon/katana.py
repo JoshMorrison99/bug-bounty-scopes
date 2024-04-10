@@ -2,8 +2,10 @@ import os
 import subprocess
 import logging
 import shlex
-import pandas as pd
+import sqlite3
 import time
+import io
+from datetime import datetime
 from db_operations import create_URL_database, get_cursor
 
 # Configure logging
@@ -12,9 +14,9 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_katana(filename):
     try:
-        command = f'katana -list {filename} -js-crawl -crawl-duration 600 -known-files all -headers headers.txt -crawl-scope {filename}'
+        command = f'katana -list {filename} -js-crawl -jsluice -crawl-duration 300 -known-files all -headers headers.txt -crawl-scope {filename}'
         args = shlex.split(command)
-        results = subprocess.run(args, check=True, text=True, stderr=subprocess.DEVNULL)
+        results = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return results.stdout
     except subprocess.CalledProcessError as e:
         # Handle subprocess errors
@@ -30,32 +32,43 @@ def run_katana(filename):
 
 def main():
 
-    # Loop over all the databases and run SQL query to get today's subdomains.
-    for file in os.listdir('httpx'):
-        filename = file.replace('.csv', '')
+    conn = sqlite3.connect(f'swarm.db')
+    cursor = conn.cursor()
 
-        df = pd.read_csv(f'httpx/{file}')
-        df['url'].to_csv('temp.txt', index=False, header=False)
+    current_date = datetime.now().strftime('%Y-%m-%d')
 
-        run_katana(filename)
+    # Get all the subdomains that were added today
+    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%' AND status_code IS NOT NULL;")
 
-        # Clean up
-        os.remove('temp.txt')
-        
-        # Write to database
-        create_URL_database(f"url-db/{filename}.db")
-        cursor = get_cursor(f"url-db/{filename}.db")
-        with open(f'urls/{filename}-katana.txt') as file:
-            for url in file:
-                cursor.execute('''INSERT OR REPLACE INTO urls 
-                                (id, url, updated_at, created_at) 
-                                VALUES 
-                                ((SELECT id FROM urls WHERE url = ?),
-                                ?,
-                                DATE('now', 'localtime'),
-                                COALESCE((SELECT created_at FROM urls WHERE url = ?), DATE('now', 'localtime')))''', 
-                                (url, url, url))
-        cursor.connection.commit()
+    # Fetch all the results
+    results = cursor.fetchall()
+    
+    with open('temp.txt', 'w') as file:
+        for subdomain in results:
+            file.write(subdomain[0] + '\n')
+            break
+    
+
+    results = run_katana('temp.txt')
+    print(results)
+
+    # Clean up
+    os.remove('temp.txt')
+    
+    # Write to database
+    create_URL_database(f"swarm-url.db")
+    cursor = get_cursor(f"swarm-url.db")
+    file = io.StringIO(results)
+    for url in file:
+        cursor.execute('''INSERT OR REPLACE INTO urls 
+                        (id, url, updated_at, created_at) 
+                        VALUES 
+                        ((SELECT id FROM urls WHERE url = ?),
+                        ?,
+                        DATE('now', 'localtime'),
+                        COALESCE((SELECT created_at FROM urls WHERE url = ?), DATE('now', 'localtime')))''', 
+                        (url, url, url))
+    cursor.connection.commit()
                 
 
 if __name__ == "__main__":

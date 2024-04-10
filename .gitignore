@@ -13,3 +13,6 @@ alterx
 dnsx
 url-db
 __pycache__/
+resume.cfg
+swarm-url.db
+swarm.db
