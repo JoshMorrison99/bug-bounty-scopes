@@ -45,12 +45,9 @@ def main():
     
     with open('temp.txt', 'w') as file:
         for subdomain in results:
-            file.write(subdomain[0] + '\n')
-            break
-    
+            file.write(subdomain[0])
 
     results = run_katana('temp.txt')
-    print(results)
 
     # Clean up
     os.remove('temp.txt')

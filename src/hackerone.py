@@ -7,6 +7,7 @@ from helpers import normalize
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+remove_programs = json.load(open('manual-remove.json'))['programs']
 
 def hackerone(api_username, api_token):
     headers = {'Accept': 'application/json'}
@@ -18,11 +19,17 @@ def hackerone(api_username, api_token):
         h1 = response.json()
 
         for program in h1['data']:
-
+            
+            # Skip programs without a handle
             if('handle' not in program['attributes']):
                 continue
             
             program_handle = program['attributes']['handle']
+            
+            # Skip programs that I don't want to bother collecting data on
+            if program_handle in remove_programs:
+                continue
+            
             program_object = {
                 'name': program['attributes']['name'],
                 'submission_state': program['attributes']['submission_state'],
@@ -40,8 +47,12 @@ def hackerone(api_username, api_token):
                     'CIDR': [],
                 },
                 "public": True if program['attributes']['state'] == 'public_mode' else False,
-                "vdp": program['attributes']['offers_bounties'],
+                "vdp": not program['attributes']['offers_bounties'],
             }
+            
+            # Only get data on programs that are in open state - possible values: (open|paused)
+            if(program['attributes']['submission_state'] != "open"):
+                continue
 
             program_url = f'https://api.hackerone.com/v1/hackers/programs/{program_handle}/structured_scopes'
 
@@ -88,6 +99,12 @@ def hackerone(api_username, api_token):
             url = h1['links']['next']
         else:
             break
+    
+    # Add programs that I want manually because API has incorrect information
+    add_programs = json.load(open('manual-add.json'))
+    for program in add_programs:
+        feed[program] = add_programs[program]
+        
 
     return feed
 

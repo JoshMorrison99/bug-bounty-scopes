@@ -11,7 +11,7 @@ import io
 from concurrent.futures import ThreadPoolExecutor
 
 # Constants
-MAX_WORKERS = 10
+MAX_WORKERS = 15
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -52,7 +52,7 @@ def main():
     file = open(f'httpx/temp-{count}.txt', 'w')
     for index, subdomain in enumerate(results):
         file.write(subdomain[0] + '\n')
-        if (index + 1) % 5000 == 0:
+        if (index + 1) % 1000 == 0:
             file.close()
             count = count + 1
             file = open(f'httpx/temp-{count}.txt', 'w')

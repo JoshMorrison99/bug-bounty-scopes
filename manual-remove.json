@@ -1,0 +1,27 @@
+{
+    "programs":[
+        "wordpress",
+        "wix",
+        "alibaba",
+        "adobe",
+        "automattic",
+        "platform_sh",
+        "algolia",
+        "ups",
+        "cloudflare",
+        "ui",
+        "shopify",
+        "manulife",
+        "intuit_rdp",
+        "gsa_vdp",
+        "ui",
+        "thomsonreuters-public",
+        "shutterfly_vdp",
+        "reddit",
+        "vimeo",
+        "quora",
+        "pixiv",
+        "yelp",
+        "x"
+    ]
+}

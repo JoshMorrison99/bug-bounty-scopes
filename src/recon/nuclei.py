@@ -4,6 +4,8 @@ import logging
 import shlex
 import pandas as pd
 import time
+import sqlite3
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,7 +13,7 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_nuclei(filename):
     try:
-        command = f'nuclei -list {filename} -templates nuclei-templates -header headers.txt -rate-limit 20 -headless -stats -scan-strategy host-spray'
+        command = f'nuclei -list {filename} -templates nuclei-templates -dast -header headers.txt -rate-limit 20 -headless -stats -scan-strategy host-spray'
         args = shlex.split(command)
         subprocess.run(args, check=True, text=True)
     except subprocess.CalledProcessError as e:
@@ -27,10 +29,23 @@ def run_nuclei(filename):
 
 
 def main():
+    
+    conn = sqlite3.connect(f'swarm-url.db')
+    cursor = conn.cursor()
 
-    # Loop over all the databases and run SQL query to get today's subdomains.
-    for file in os.listdir('urls'):
-        run_nuclei(f'urls/{file}')
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Get all the subdomains that were added today
+    cursor.execute(f"SELECT url FROM urls WHERE created_at LIKE '%{current_date}%' AND url LIKE '%?%';")
+
+    # Fetch all the results
+    results = cursor.fetchall()
+    
+    with open('temp.txt', 'w') as file:
+        for url in results:
+            file.write(url[0] + '\n')
+
+    run_nuclei('temp.txt')
 
 if __name__ == "__main__":
     start_time = time.time()
