@@ -90,7 +90,6 @@ def main():
 
             num_futures = len(futures)
             with tqdm(total=num_futures) as pbar:
-                completed = 0
                 for future in as_completed(futures):
                     subdomains, program, public, vdp = future.result()
 
@@ -120,7 +119,6 @@ def main():
                                 
                         cursor.connection.commit()
 
-                    completed += 1
                     pbar.update(1)
     cursor.connection.commit()
     cursor.close()

@@ -8,7 +8,7 @@ import pandas as pd
 import time
 from tqdm import tqdm
 import io
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Constants
 MAX_WORKERS = 15
@@ -19,7 +19,7 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_httpx(filename):
     try:
-        command = f'httpx -list {filename} -csv -asn -threads 250 -silent -stream -rate-limit 300 -retries 0'
+        command = f'httpx -list {filename} -csv -asn -silent -stream -threads 250 -rate-limit 300'
         args = shlex.split(command)
         results = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return results.stdout
@@ -33,6 +33,37 @@ def run_httpx(filename):
         logging.error(f"HTTPX had an unexpected error.")
         logging.exception(e)  # Log the full exception traceback
         return None
+
+def process_file(file_path, cursor):
+    results = run_httpx(file_path)
+    df = pd.read_csv(io.StringIO(results))
+    columns = ['status_code', 'content_length', 'asn', 'webserver', 'host', 'url', 'tech', 'input']
+    extracted_columns = df[columns]
+    
+    for _, row in extracted_columns.iterrows():
+        insert_into_database(row, cursor)
+
+def insert_into_database(row, cursor):
+    cursor.execute('''INSERT OR REPLACE INTO subdomains 
+                        (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
+                        VALUES 
+                        ((SELECT id FROM subdomains WHERE subdomain = ?),
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        (SELECT program FROM subdomains WHERE subdomain = ?),
+                        (SELECT recon_source FROM subdomains WHERE subdomain = ?),
+                        (SELECT public FROM subdomains WHERE subdomain = ?),
+                        (SELECT vdp FROM subdomains WHERE subdomain = ?),
+                        (SELECT platform FROM subdomains WHERE subdomain = ?),
+                        DATE('now', 'localtime'),
+                        COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
+                        (row['input'], row['input'], row['host'], row['asn'], row['status_code'], row['content_length'], row['webserver'], row['tech'], row['input'], row['input'], row['input'], row['input'], row['input'], row['input']))
+    cursor.connection.commit()
 
 
 def main():
@@ -63,54 +94,13 @@ def main():
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit tasks to process each file concurrently
-        futures = [executor.submit(run_httpx, file_path) for file_path in files]
+        futures = [executor.submit(process_file, file_path, cursor) for file_path in files]
 
-
-        with tqdm(total=len(futures), desc="Processing") as pbar:
-            # Wait for all tasks to complete
-            for future in futures:
-                results = future.result()  # This will block until each task completes
-                csv_data = io.StringIO(results)
-                df = pd.read_csv(csv_data)
-                columns = ['status_code', 'content_length', 'asn', 'webserver', 'host', 'url', 'tech', 'input']
-
-                extracted_columns = df[columns]
-
-                # Write the extracted columns to a new CSV file
-                extracted_columns.to_csv(csv_data, index=False)
+        num_futures = len(futures)
+        with tqdm(total=num_futures) as pbar:
+            for _ in as_completed(futures):
+                pbar.update(1)
                 
-                for index, row in extracted_columns.iterrows():
-                    status_code = row['status_code']
-                    webserver = row['webserver']
-                    ip = row['host']
-                    url = row['url']
-                    technology = row['tech']
-                    subdomain = row['input']
-                    asn = row['asn']
-                    content_length = row['content_length']
-                    
-                    # Write to database
-                    cursor.execute('''INSERT OR REPLACE INTO subdomains 
-                                                        (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
-                                                        VALUES 
-                                                        ((SELECT id FROM subdomains WHERE subdomain = ?),
-                                                        ?,
-                                                        ?,
-                                                        ?,
-                                                        ?,
-                                                        ?,
-                                                        ?,
-                                                        ?,
-                                                        (SELECT program FROM subdomains WHERE subdomain = ?),
-                                                        (SELECT recon_source FROM subdomains WHERE subdomain = ?),
-                                                        (SELECT public FROM subdomains WHERE subdomain = ?),
-                                                        (SELECT vdp FROM subdomains WHERE subdomain = ?),
-                                                        (SELECT platform FROM subdomains WHERE subdomain = ?),
-                                                        DATE('now', 'localtime'),
-                                                        COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
-                                                        (subdomain, subdomain, ip, asn, status_code, content_length, webserver, technology, subdomain, subdomain, subdomain, subdomain, subdomain, subdomain))
-                    cursor.connection.commit()
-            pbar.update(1)
     # Close the cursor and connection
     cursor.close()
     conn.close()

@@ -12,9 +12,11 @@ echo -n > logs/debug.log
 # Clear any previously generated data
 rm -rf feeds
 rm -rf httpx
+rm -rf katana
 
 mkdir feeds
 mkdir httpx
+mkdir katana
 
 # Get latest scopes
 #python3 src/yeswehack.py
@@ -38,7 +40,7 @@ python3 src/recon/httpx.py
 
 python3 src/recon/katana.py
 
-python3 src/recon/nuclei.py
+#python3 src/recon/nuclei.py
 
 # Copy Databases to OneDrive to bve saved
 #cp -r db /mnt/c/Users/joshm/OneDrive
