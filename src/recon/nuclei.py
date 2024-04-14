@@ -6,6 +6,7 @@ import pandas as pd
 import time
 import sqlite3
 from datetime import datetime
+from helpers import notify
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -51,6 +52,7 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     end_time = time.time()
+    notify("Nuclei", end_time - start_time)
     logging.info(f"Nuclei Execution Time: {end_time - start_time}")
 
 

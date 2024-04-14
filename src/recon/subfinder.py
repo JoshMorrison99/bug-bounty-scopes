@@ -5,9 +5,10 @@ from concurrent.futures import as_completed
 import os
 from tqdm import tqdm
 from datetime import date
-from db_operations import create_database, get_cursor
+from db_operations import create_database, get_cursor, get_new_subdomains
 import logging
 import time
+from helpers import notify
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -122,10 +123,13 @@ def main():
                     pbar.update(1)
     cursor.connection.commit()
     cursor.close()
+    
 
 if __name__ == '__main__':
     start_time = time.time()
     main()
     end_time = time.time()
+    new_subs = get_new_subdomains("subfinder")
+    notify("Subfinder", end_time - start_time, f"number of new subdomains {new_subs}")
     logging.info(f"Subfinder Execution Time: {end_time - start_time}")
     

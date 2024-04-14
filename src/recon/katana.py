@@ -7,8 +7,9 @@ import time
 import io
 from tqdm import tqdm
 from datetime import datetime
-from db_operations import create_URL_database, get_cursor
+from db_operations import create_URL_database, get_cursor, get_new_urls
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from helpers import notify
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -94,6 +95,8 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     end_time = time.time()
+    num_urls = get_new_urls()
+    notify("Katana", end_time - start_time, f"number of new urls {num_urls}")
     logging.info(f"Katana Execution Time: {end_time - start_time}")
 
 

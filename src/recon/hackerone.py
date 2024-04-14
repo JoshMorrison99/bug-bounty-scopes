@@ -3,7 +3,7 @@ import configparser
 import time
 import logging
 import json
-from helpers import normalize
+from helpers import normalize, notify
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -116,15 +116,19 @@ def main():
         api_username = config['hackerone']['API_USERNAME']
         api_token = config['hackerone']['API_TOKEN']
         feed = hackerone(api_username, api_token)
+        num_programs = len(feed)
 
         logging.info(f"Number of Programs in HackerOne is {len(feed)}")
         with open('feeds/hackerone.json', 'w') as file:
             json.dump(feed, file)
     else:
         print("Error: 'hackerone' section not found in the config file.")
+        
+    return num_programs
 
 if __name__ == "__main__":
     start_time = time.time()
-    main()
+    num_programs = main()
     end_time = time.time()
+    notify("HackerOne", end_time - start_time, f'number of programs {num_programs}')
     logging.info(f"HackerOne Execution Time: {end_time - start_time}")

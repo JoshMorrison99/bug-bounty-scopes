@@ -9,9 +9,11 @@ import time
 from tqdm import tqdm
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from db_operations import get_resolved_subdomains
+from helpers import notify
 
 # Constants
-MAX_WORKERS = 15
+MAX_WORKERS = 5
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,7 +21,7 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_httpx(filename):
     try:
-        command = f'httpx -list {filename} -csv -asn -silent -stream -threads 250 -rate-limit 300'
+        command = f'httpx -list {filename} -csv -asn -silent -stream'
         args = shlex.split(command)
         results = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return results.stdout
@@ -110,6 +112,8 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     end_time = time.time()
+    num_subs = get_resolved_subdomains()
+    notify("HTTPX", end_time - start_time, f"number of resolved subdomains {num_subs}")
     logging.info(f"HTTPX Execution Time: {end_time - start_time}")
 
 

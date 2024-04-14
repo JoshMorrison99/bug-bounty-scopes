@@ -1,4 +1,6 @@
 import re
+from datetime import timedelta
+import subprocess
 
 def normalize(url: str) -> set:
     '''Takes in a scope written by the program manager and returns a list of normalized domains'''
@@ -43,3 +45,19 @@ def normalize(url: str) -> set:
             normalized_urls_ret.add(url)
 
     return normalized_urls_ret
+
+def notify(tool, elapsed_time, message):
+    """
+    Takes in the tool used, the elapsed time in seconds and a message to
+    send to the notify tool that will send a Discord Webhook message in the format - HH:MM:SS
+    """
+    
+    elapsed_time_timedelta = timedelta(seconds=elapsed_time)
+    hours = int(elapsed_time_timedelta.total_seconds() // 3600)
+    minutes = int((elapsed_time_timedelta.total_seconds() // 60) % 60)
+    seconds = int(elapsed_time_timedelta.total_seconds() % 60)
+    
+    p1 = subprocess.Popen(['echo',f"{tool} Execution Time: {hours}:{minutes}:{seconds} - {message}"], stdout=subprocess.PIPE)
+    subprocess.run(['notify'], stdin=p1.stdout)
+    
+    

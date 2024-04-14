@@ -5,10 +5,10 @@ from concurrent.futures import as_completed
 import os
 from tqdm import tqdm
 from datetime import date
-from db_operations import create_database, get_cursor
+from db_operations import create_database, get_cursor, get_new_subdomains
 import logging
 import shlex
-import shutil
+from helpers import notify
 import time
 
 # Configure logging
@@ -115,4 +115,6 @@ if __name__ == '__main__':
     start_time = time.time()
     main()
     end_time = time.time()
+    num_subs = get_new_subdomains("dnsx")
+    notify("DNSx", end_time - start_time, f"number of new subdomains {num_subs}")
     logging.info(f"DNSX Execution Time: {end_time - start_time}")

@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 def create_database(db_name):
     conn = sqlite3.connect(db_name, check_same_thread=False)
@@ -61,3 +62,52 @@ def create_cursor(conn):
 def get_cursor(db_name):
     conn = create_connection(db_name)
     return create_cursor(conn)
+
+def get_new_subdomains(tool):
+    """query to get the number of newly found subdomains by the tool specified"""
+    
+    conn = sqlite3.connect(f'swarm.db')
+    cursor = conn.cursor()
+
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Get all the subdomains that were added today
+    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%' AND recon_source LIKE '%{tool}%';")
+
+    # Fetch all the results
+    results = cursor.fetchall()
+    return len(results)
+
+def get_new_urls():
+    """query to get the number of newly found urls"""
+    
+    conn = sqlite3.connect(f'swarm-urls.db')
+    cursor = conn.cursor()
+
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Get all the subdomains that were added today
+    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%';")
+
+    # Fetch all the results
+    results = cursor.fetchall()
+    return len(results)
+
+def get_resolved_subdomains():
+    """query to get the number of newly found subdomains that have been resolved"""
+    
+    conn = sqlite3.connect(f'swarm.db')
+    cursor = conn.cursor()
+
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Get all the subdomains that were added today
+    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%' AND status_code IS NOT NULL;")
+
+    # Fetch all the results
+    results = cursor.fetchall()
+    return len(results)
+
+    
+    
+    
