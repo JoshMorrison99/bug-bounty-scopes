@@ -118,7 +118,7 @@ def main():
         feed = hackerone(api_username, api_token)
         num_programs = len(feed)
 
-        logging.info(f"Number of Programs in HackerOne is {len(feed)}")
+        logging.info(f"Number of Programs in HackerOne is {num_programs}")
         with open('feeds/hackerone.json', 'w') as file:
             json.dump(feed, file)
     else:

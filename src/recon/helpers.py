@@ -58,6 +58,11 @@ def notify(tool, elapsed_time, message):
     seconds = int(elapsed_time_timedelta.total_seconds() % 60)
     
     p1 = subprocess.Popen(['echo',f"{tool} Execution Time: {hours}:{minutes}:{seconds} - {message}"], stdout=subprocess.PIPE)
-    subprocess.run(['notify'], stdin=p1.stdout)
+    subprocess.run(['notify', '-id', 'notifications', '-silent'], stdin=p1.stdout)
+    
+def notify_debug(message):
+    
+    p1 = subprocess.Popen(['echo',f"{message}"], stdout=subprocess.PIPE)
+    subprocess.run(['notify', '-id', 'debug'], stdin=p1.stdout)
     
     

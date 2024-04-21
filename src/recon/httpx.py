@@ -10,10 +10,10 @@ from tqdm import tqdm
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from db_operations import get_resolved_subdomains
-from helpers import notify
+from helpers import notify, notify_debug
 
 # Constants
-MAX_WORKERS = 5
+MAX_WORKERS = 15
 
 # Configure logging
 logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,9 +21,9 @@ logging.basicConfig(filename='logs/debug.log', level=logging.INFO, format='%(asc
 
 def run_httpx(filename):
     try:
-        command = f'httpx -list {filename} -csv -asn -silent -stream'
+        command = f'httpx.exe -list {filename} -threads 300 -rate-limit 250 -csv -asn -silent -stream'
         args = shlex.split(command)
-        results = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        results = subprocess.run(args, stdout=subprocess.PIPE, text=True)
         return results.stdout
     except subprocess.CalledProcessError as e:
         # Handle subprocess errors
@@ -36,38 +36,6 @@ def run_httpx(filename):
         logging.exception(e)  # Log the full exception traceback
         return None
 
-def process_file(file_path, cursor):
-    results = run_httpx(file_path)
-    df = pd.read_csv(io.StringIO(results))
-    columns = ['status_code', 'content_length', 'asn', 'webserver', 'host', 'url', 'tech', 'input']
-    extracted_columns = df[columns]
-    
-    for _, row in extracted_columns.iterrows():
-        insert_into_database(row, cursor)
-
-def insert_into_database(row, cursor):
-    cursor.execute('''INSERT OR REPLACE INTO subdomains 
-                        (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
-                        VALUES 
-                        ((SELECT id FROM subdomains WHERE subdomain = ?),
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        (SELECT program FROM subdomains WHERE subdomain = ?),
-                        (SELECT recon_source FROM subdomains WHERE subdomain = ?),
-                        (SELECT public FROM subdomains WHERE subdomain = ?),
-                        (SELECT vdp FROM subdomains WHERE subdomain = ?),
-                        (SELECT platform FROM subdomains WHERE subdomain = ?),
-                        DATE('now', 'localtime'),
-                        COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
-                        (row['input'], row['input'], row['host'], row['asn'], row['status_code'], row['content_length'], row['webserver'], row['tech'], row['input'], row['input'], row['input'], row['input'], row['input'], row['input']))
-    cursor.connection.commit()
-
-
 def main():
 
     conn = sqlite3.connect(f'swarm.db')
@@ -76,19 +44,20 @@ def main():
     current_date = datetime.now().strftime('%Y-%m-%d')
 
     # Get all the subdomains that were added today
-    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%';")
+    cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%2024-04-13%';")
+    #cursor.execute(f"SELECT subdomain FROM subdomains WHERE created_at LIKE '%{current_date}%';")
 
     # Fetch all the results
     results = cursor.fetchall()
 
-    count = 0
-    file = open(f'httpx/temp-{count}.txt', 'w')
-    for index, subdomain in enumerate(results):
-        file.write(subdomain[0] + '\n')
-        if (index + 1) % 1000 == 0:
-            file.close()
-            count = count + 1
-            file = open(f'httpx/temp-{count}.txt', 'w')
+    # count = 0
+    # file = open(f'httpx/temp-{count}.txt', 'w')
+    # for index, subdomain in enumerate(results):
+    #     file.write(subdomain[0] + '\n')
+    #     if (index + 1) % 100 == 0:
+    #         file.close()
+    #         count = count + 1
+    #         file = open(f'httpx/temp-{count}.txt', 'w')
             
     folder_path = "httpx"
     files = [os.path.join(folder_path, file) for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file))]
@@ -96,12 +65,51 @@ def main():
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit tasks to process each file concurrently
-        futures = [executor.submit(process_file, file_path, cursor) for file_path in files]
+        futures = [executor.submit(run_httpx, file_path) for file_path in files]
 
         num_futures = len(futures)
+        count = 0
         with tqdm(total=num_futures) as pbar:
-            for _ in as_completed(futures):
-                pbar.update(1)
+            for future in as_completed(futures):
+                notify_debug(f'[HTTPX2] - {count}/{num_futures}')
+                
+                df = pd.read_csv(io.StringIO(future.result()))
+                columns = ['status_code', 'content_length', 'asn', 'webserver', 'host', 'url', 'tech', 'input']
+                extracted_columns = df[columns]
+                for _, row in extracted_columns.iterrows():
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    notify_debug(f'[HTTPX] - {current_time} - subdomain resolved: {row["input"]}')
+                    status_code = row['status_code']
+                    content_length = row['content_length']
+                    asn = row['asn']
+                    webserver = row['webserver']
+                    ip = row['host']
+                    technology = row['tech']
+                    subdomain = row['input']
+                    
+                    
+                    cursor.execute('''INSERT OR REPLACE INTO subdomains 
+                            (id, subdomain, ip, asn, status_code, content_length, web_server, technology, program, recon_source, public, vdp, platform, updated_at, created_at) 
+                            VALUES 
+                            ((SELECT id FROM subdomains WHERE subdomain = ?),
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            (SELECT program FROM subdomains WHERE subdomain = ?),
+                            (SELECT recon_source FROM subdomains WHERE subdomain = ?),
+                            (SELECT public FROM subdomains WHERE subdomain = ?),
+                            (SELECT vdp FROM subdomains WHERE subdomain = ?),
+                            (SELECT platform FROM subdomains WHERE subdomain = ?),
+                            DATE('now', 'localtime'),
+                            COALESCE((SELECT created_at FROM subdomains WHERE subdomain = ?), DATE('now', 'localtime')))''', 
+                            (subdomain, subdomain, ip, asn, status_code, content_length, webserver, technology, subdomain,subdomain, subdomain, subdomain, subdomain, subdomain))
+                cursor.connection.commit()
+                pbar.update(1) 
+                count = count + 1   
                 
     # Close the cursor and connection
     cursor.close()
